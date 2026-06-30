@@ -34,10 +34,9 @@ jobs:
 
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
-        with:
-          # Define aquí la carpeta raíz donde está tu index.html. 
-          # Si está en la raíz de tu proyecto, usa "."
-          path: "."
+       with:
+          # Indicamos a GitHub Actions que la web está dentro de particle-web
+          path: "particle-web"
 
       - name: Deploy to GitHub Pages
         id: deployment
