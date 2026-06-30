@@ -31,11 +31,11 @@ export class HydrogenGroup {
         // 3. El radio dinámico será la mitad de la distancia + un margen extra (padding) de 45px 
         // para garantizar que la esfera los envuelva holgadamente por fuera.
         // Usamos Math.max para asegurarnos de que el radio nunca colapse por debajo de 130.
-        return Math.max(130, (distanceBetweenProtons / 2) + 45);
+        return Math.max(165, (distanceBetweenProtons / 2) + 65);
     }
     
     // Si es un átomo de Hidrógeno (H) normal y solitario, mantiene su radio fijo de 85
-    return 85;
+    return 125;
     }
 
   get center() {
