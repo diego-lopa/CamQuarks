@@ -26,24 +26,29 @@
       height: 100vh;
     }
 
-    /* Vídeo de cámara — DEBE estar espejado para que sea intuitivo */
-    #webcam {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transform: scaleX(-1);
-      /* Mantiene el espejo del vídeo */
-      opacity: 0.85;
-    }
+    /* Vídeo de cámara — Ocupa el 100% elástico adaptándose a cualquier orientación */
+#webcam {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* Mantiene el espejo del vídeo */
+  opacity: 0.85;
+  z-index: 1;
+}
 
-    #particle-canvas {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 2;
-    }
+/* Canvas de partículas — Debe clonar exactamente las dimensiones del vídeo */
+#particle-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto; /* ¡Cambio! Permite capturar gestos táctiles directos si se requiere en el futuro */
+  z-index: 2;
+}
 
     /* ─── TÍTULO CENTRAL SUPERIOR ─── */
     #app-title {

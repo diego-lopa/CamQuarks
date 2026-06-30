@@ -12,17 +12,21 @@ export function render(ctx, canvas, particles, groups, gestures) {
 
   // 1. DIBUJAR NÚCLEOS (Protones, Neutrones y Piones se mantienen puros en su interior)
   for (const group of groups) {
-    const { x, y } = group.center;
+  const { x, y } = group.center;
 
-    let maxDist = 0;
-    const isPion = group.members.length === 2;
-    const BASE_PADDING = isPion ? 18 : 32;
-    for (const p of group.members) {
-      const dist = Math.hypot(p.x - x, p.y - y);
-      if (dist > maxDist) maxDist = dist;
-    }
-    const dynamicRadius = maxDist + BASE_PADDING;
-    const strokeColor = isPion ? 'rgba(0, 238, 255, 0.4)' : 'rgba(255, 68, 68, 0.3)';
+  let maxDist = 0;
+  const isPion = group.members.length === 2;
+  
+  // ¡AJUSTE DE RADIO!: Incrementamos los márgenes para adaptarlos al nuevo tamaño de los quarks
+  // Antes: isPion ? 18 : 32
+  const BASE_PADDING = isPion ? 35 : 45; 
+  
+  for (const p of group.members) {
+    const dist = Math.hypot(p.x - x, p.y - y);
+    if (dist > maxDist) maxDist = dist;
+  }
+  const dynamicRadius = maxDist + BASE_PADDING;
+  const strokeColor = isPion ? 'rgba(0, 238, 255, 0.4)' : 'rgba(255, 68, 68, 0.3)';
 
     // Colores y nombres originales fijos del núcleo (El protón ya no se oculta)
     let displayName = group.name;

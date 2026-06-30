@@ -60,8 +60,10 @@ function onHandResults(results) {
 // BUCLE PRINCIPAL DE ANIMACIÓN
 // ─────────────────────────────────────────────────────────
 function gameLoop() {
-  canvas.width = canvas.offsetWidth;
-  canvas.height = canvas.offsetHeight;
+  // Eliminadas las asignaciones de ancho y alto por frame para evitar pérdidas de rendimiento en móvil
+
+  // 1. Procesar entrada de gestos
+  applyGesturesToWorld(lastGestures, particles);
 
   // 1. Procesar entrada de gestos
   applyGesturesToWorld(lastGestures, particles);
@@ -309,6 +311,32 @@ function handleElectronPositronAnnihilation() {
     }
   }
 }
+
+// ─────────────────────────────────────────────────────────
+// CONTROL DE REDIMENSIONAMIENTO Y ROTACIÓN DINÁMICA
+// ─────────────────────────────────────────────────────────
+function resizeCanvas() {
+  const canvasElement = document.getElementById('particle-canvas');
+  if (!canvasElement) return;
+
+  // Ajustamos los píxeles internos del lienzo al tamaño real que ocupa en la pantalla
+  canvasElement.width = window.innerWidth;
+  canvasElement.height = window.innerHeight;
+
+  console.log(`[Pantalla] Sistema cuántico adaptado a: ${canvasElement.width}x${canvasElement.height}`);
+}
+
+// Escuchamos el cambio de tamaño del navegador y giros de pantalla
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', () => {
+  // Aplicamos un pequeño retraso de 200ms para asegurar que el navegador móvil 
+  // termine de reajustar las barras de navegación antes de medir el espacio real.
+  setTimeout(resizeCanvas, 200);
+});
+
+// Forzamos una primera ejecución al cargar el script
+resizeCanvas();
+
 // ─────────────────────────────────────────────────────────
 // ARRANQUE DE LA CÁMARA Y LA SIMULACIÓN
 // ─────────────────────────────────────────────────────────

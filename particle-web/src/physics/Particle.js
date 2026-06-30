@@ -1,33 +1,43 @@
 // src/physics/Particle.js
 
 export class Particle {
-  constructor({ type, x, y }) {
-    this.type = type;
-    this.x = x;
-    this.y = y;
-    this.vx = 0;
-    this.vy = 0;
+  // src/physics/Particle.js
+
+constructor({ type, x, y }) {
+  this.type = type;
+  this.x = x;
+  this.y = y;
+  this.vx = 0;
+  this.vy = 0;
+  this.grabbed = false;
+
+  // 1. DECLARAMOS LOS QUARKS UNA SOLA VEZ AQUÍ ARRIBA
+  const quarks = ['u', 'anti_u', 'd', 'anti_d'];
+
+  // 2. Ajuste del tamaño dinámico (50% más grande para Quarks)
+  if (quarks.includes(type)) {
+    this.radius = 22.5; 
+  } else {
     this.radius = type === 'photon' ? 8 : 15;
-    this.grabbed = false;
-
-    // Control estricto de tiempo de vida (en segundos)
-    this.age = 0;
-    this.lifespan = null;
-
-    // REGLA ABSOLUTA: Los únicos inmortales por tiempo son los quarks, antiquarks, electrones y positrones.
-    const inmortales = ['u', 'anti_u', 'd', 'anti_d', 'e', 'positron'];
-    
-    if (!inmortales.includes(type)) {
-      // Los muones, antimuones, neutrinos muónicos y electrónicos duran estrictamente 10s. Los fotones duran 5s.
-      this.lifespan = (type === 'photon') ? 5.0 : 10.0; 
-    }
-
-    // Partículas con momento lineal constante (se mueven solas sin fricción ambiental)
-    const quarks = ['u', 'anti_u', 'd', 'anti_d'];
-    this.constantMomentum = !quarks.includes(type);
-
-    this.updateLabelAndColor();
   }
+
+  // Control estricto de tiempo de vida (en segundos)
+  this.age = 0;
+  this.lifespan = null;
+
+  // Los quarks, antiquarks, electrones y positrones son inmortales por tiempo.
+  const inmortales = ['u', 'anti_u', 'd', 'anti_d', 'e', 'positron'];
+  
+  if (!inmortales.includes(type)) {
+    this.lifespan = (type === 'photon') ? 5.0 : 10.0; 
+  }
+
+  // 3. ¡REUTILIZAMOS LA VARIABLE! (Elimina el 'const' que estaba aquí abajo)
+  // Partículas con momento lineal constante
+  this.constantMomentum = !quarks.includes(type);
+
+  this.updateLabelAndColor();
+}
 
   updateLabelAndColor() {
     switch (this.type) {
