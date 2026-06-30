@@ -1,0 +1,44 @@
+name: Deploy Static Content to Pages
+
+on:
+  # Se ejecuta automáticamente cuando subes cambios a la rama main
+  push:
+    branches: ["main"]
+
+  # Te permite ejecutar este flujo manualmente desde la pestaña Actions de GitHub
+  workflow_dispatch:
+
+# Configura los permisos del GITHUB_TOKEN para permitir la publicación en GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Evita ejecuciones simultáneas: cancela las que estén en progreso si se sube código nuevo
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Define aquí la carpeta raíz donde está tu index.html. 
+          # Si está en la raíz de tu proyecto, usa "."
+          path: "."
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
