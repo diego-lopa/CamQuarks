@@ -1,0 +1,323 @@
+import { initCamera } from './camera.js';
+import { detectGestures, applyGesturesToWorld } from './gesture.js';
+import { Particle } from './physics/Particle.js';
+import { NuclearGroup } from './physics/NuclearGroup.js';
+import { HydrogenGroup } from './physics/HydrogenGroup.js';
+import { BetaDecay } from './physics/BetaDecay.js';
+import { PionDecay } from './physics/PionDecay.js';
+import { AudioManager } from './audio.js';
+import { render } from './renderer.js';
+
+// --- ESTADO GLOBAL EXPORTADO ---
+export let particles = [
+  // Hadrón 1: Protón inicial (u, u, d)
+  new Particle({ type: 'u', x: 250, y: 300 }),
+  new Particle({ type: 'u', x: 300, y: 270 }),
+  new Particle({ type: 'd', x: 270, y: 330 }),
+
+  // Hadrón 2: Neutrón inicial (u, d, d)
+  new Particle({ type: 'u', x: 550, y: 300 }),
+  new Particle({ type: 'd', x: 600, y: 270 }),
+  new Particle({ type: 'd', x: 570, y: 330 })
+];
+
+export let groups = [
+  new NuclearGroup([particles[0], particles[1], particles[2]]), // Protón
+  new NuclearGroup([particles[3], particles[4], particles[5]])  // Neutrón
+];
+
+export let flashEffects = [];
+
+// --- ELEMENTOS DEL DOM ---
+const video = document.getElementById('webcam');
+const canvas = document.getElementById('particle-canvas');
+const ctx = canvas.getContext('2d');
+const hudStatus = document.getElementById('hand-status');
+
+const audioManager = new AudioManager();
+let lastGestures = [];
+const DT = 1 / 60;
+
+function onHandResults(results) {
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    if (hudStatus) hudStatus.innerText = `Manos detectadas: ${results.multiHandLandmarks.length}`;
+    lastGestures = detectGestures(
+      results.multiHandLandmarks.map((lm, i) => ({
+        landmarks: lm,
+        handedness: results.multiHandedness[i]
+      })),
+      canvas.width,
+      canvas.height,
+      lastGestures
+    );
+  } else {
+    if (hudStatus) hudStatus.innerText = "Esperando manos...";
+    lastGestures = [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// BUCLE PRINCIPAL DE ANIMACIÓN
+// ─────────────────────────────────────────────────────────
+function gameLoop() {
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+
+  // 1. Procesar entrada de gestos
+  applyGesturesToWorld(lastGestures, particles);
+
+  // 2. Gestión de interacciones elásticas y aniquilaciones
+  
+    handleHadronStretching();
+    handleDynamicNuclearFusion();
+    handleElectronPositronAnnihilation();
+
+    // Resolver las colisiones mecánicas
+    Particle.resolveCollisions(particles);
+
+    // ─────────────────────────────────────────────────────────
+    // CONTROL ESTRICTO Y ELIMINACIÓN/DECAIMIENTO DE PARTÍCULAS TEMPORALES
+    // ─────────────────────────────────────────────────────────
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      
+      // Ejecutamos el movimiento cinemático normal de la partícula una sola vez por frame
+      p.update(DT, canvas.width, canvas.height);
+
+      // CONTROL DE TIEMPO DE VIDA DIRECTO DESDE MAIN.JS (A prueba de fallos)
+      // Si la partícula ha superado su lifespan asignado en Particle.js, se desintegra simplemente
+      if (p.lifespan !== null && p.age >= p.lifespan) {
+          console.log(`[Decaimiento] Desintegrando partícula temporal: ${p.type}`);
+          particles.splice(i, 1);
+          continue;
+      }
+
+      // Si es un fotón y cruzó cualquiera de los bordes del canvas, se elimina
+      if (p.type === 'photon' && (p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height)) {
+          particles.splice(i, 1);
+          continue;
+      }
+    }
+
+  // 3. Reglas cuánticas y decaimientos temporales
+  HydrogenGroup.tryCapture(particles, groups, audioManager);
+  HydrogenGroup.tryFormH2(audioManager);
+  BetaDecay.checkDecay(groups, particles, audioManager, DT);
+  PionDecay.updateAll(DT, particles, groups, audioManager);
+
+  // 4. Integradores cinemáticos y fuerzas
+  for (const g of groups) g.applyForces();
+  for (const h of HydrogenGroup.instances) h.updatePhysics();
+
+  // Resolver colisiones de quarks antes de actualizar posiciones finales
+  Particle.resolveCollisions(particles);
+
+  // Actualizar la animación del efecto de luz de aniquilación
+  for (let i = flashEffects.length - 1; i >= 0; i--) {
+    let f = flashEffects[i];
+    f.radius += 120 * DT; 
+    f.alpha -= 2.0 * DT;  
+    if (f.alpha <= 0) flashEffects.splice(i, 1);
+  }
+
+  // 5. Dibujar escena
+  render(ctx, canvas, particles, groups, lastGestures);
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCIONES AUXILIARES DE DINÁMICA CUÁNTICA
+// ─────────────────────────────────────────────────────────
+
+function handleHadronStretching() {
+  const BREAK_DIST = 160; 
+
+  for (const g of groups) {
+    if (g.members.length !== 3) continue; 
+
+    const grabbedMembers = g.members.filter(p => p.grabbed);
+
+    if (grabbedMembers.length >= 2) {
+      const q1 = grabbedMembers[0];
+      const q2 = grabbedMembers[1];
+
+      const esCombinacionValida = (q1.type === 'u' && q2.type === 'd') || (q1.type === 'd' && q2.type === 'u');
+
+      if (esCombinacionValida) {
+        const distanceBetweenQuarks = Math.hypot(q1.x - q2.x, q1.y - q2.y);
+
+        if (distanceBetweenQuarks > BREAK_DIST) {
+          const grabbedU = q1.type === 'u' ? q1 : q2;
+          const grabbedD = q1.type === 'd' ? q1 : q2;
+          const remainingQuark = g.members.find(p => p !== q1 && p !== q2);
+
+          let newPionGroupType = "";
+          let vacancyQuarkType = "";
+          let vacancyAntiQuarkType = "";
+          let pionMovingQuark = null;
+
+          if (g.name === "Protón") {
+            newPionGroupType = "π⁺";
+            pionMovingQuark = grabbedU; 
+            vacancyQuarkType = "d";       
+            vacancyAntiQuarkType = "anti_d"; 
+          } else if (g.name === "Neutrón") {
+            newPionGroupType = "π⁻";
+            pionMovingQuark = grabbedD; 
+            vacancyQuarkType = "u";       
+            vacancyAntiQuarkType = "anti_u"; 
+          }
+
+          console.log(`[Hadronización] Ruptura exitosa. Creando ${newPionGroupType}.`);
+
+          // Eliminar pión idéntico previo si existe en escena
+          const existingDuplicate = groups.find(group => group.name === newPionGroupType);
+          if (existingDuplicate && existingDuplicate.pionController) {
+            existingDuplicate.pionController.executeDecay(particles, groups, audioManager);
+          }
+
+          // Inyectar el par virtual desde el vacío energético
+          const spawnX = pionMovingQuark.x;
+          const spawnY = pionMovingQuark.y;
+          
+          const vQuark = new Particle({ type: vacancyQuarkType, x: remainingQuark.x, y: remainingQuark.y });
+          const vAntiQuark = new Particle({ type: vacancyAntiQuarkType, x: spawnX + 5, y: spawnY + 5 });
+          particles.push(vQuark, vAntiQuark);
+
+          // Mutar el hadrón original
+          const remainingHandQuark = (pionMovingQuark === grabbedU) ? grabbedD : grabbedU;
+          remainingHandQuark.grabbed = false; 
+          
+          g.members = [remainingQuark, remainingHandQuark, vQuark];
+          g.updateConstituents();
+
+          const center = g.center;
+          for (const member of g.members) {
+            member.x = center.x + (Math.random() - 0.5) * 10;
+            member.y = center.y + (Math.random() - 0.5) * 10;
+            member.vx = 0;
+            member.vy = 0;
+          }
+
+          // Crear el nuevo pión atado a la mano libre
+          const pionGroup = new NuclearGroup([pionMovingQuark, vAntiQuark]);
+          pionGroup.pionController = new PionDecay(pionGroup);
+          groups.push(pionGroup);
+
+          if (audioManager) audioManager.playBondSound();
+          break; 
+        }
+      }
+    }
+  }
+}
+
+function handleDynamicNuclearFusion() {
+  const FUSION_DIST = 50; 
+  const freeQuarks = particles.filter(p => (p.type === 'u' || p.type === 'd' || p.type === 'anti_u' || p.type === 'anti_d') && !p.group);
+
+  for (let i = 0; i < freeQuarks.length; i++) {
+    for (let j = i + 1; j < freeQuarks.length; j++) {
+      const q1 = freeQuarks[i];
+      const q2 = freeQuarks[j];
+
+      if (q1.group || q2.group) continue;
+
+      const dist = Math.hypot(q1.x - q2.x, q1.y - q2.y);
+      if (dist < FUSION_DIST) {
+        const q3 = freeQuarks.find(q3 => q3 !== q1 && q3 !== q2 && !q3.group && Math.hypot(q3.x - q1.x, q3.y - q1.y) < FUSION_DIST * 1.5);
+
+        if (q3) {
+          // No podrá haber grupos formados sólo por el mismo tipo de partículas (ej. uuu, ddd)
+          if (q1.type === q2.type && q2.type === q3.type) continue;
+          
+          const newGroup = new NuclearGroup([q1, q2, q3]);
+          groups.push(newGroup);
+          console.log(`[Fusión] Nuevo hadrón detectado: ${newGroup.name}`);
+        } else {
+          // No podrá haber grupos formados sólo por el mismo tipo de partículas (ej. uu, dd)
+          if (q1.type === q2.type) continue;
+
+          const newGroup = new NuclearGroup([q1, q2]);
+          newGroup.pionController = new PionDecay(newGroup); 
+          groups.push(newGroup);
+          console.log(`[Fusión] Nuevo mesón detectado: ${newGroup.name}`);
+        }
+      }
+    }
+  }
+}
+
+// Dentro de src/main.js
+
+function handleElectronPositronAnnihilation() {
+  const COLLAPSE_DIST = 700;      
+  const PHOTON_SPEED = 350;      
+
+  // ¡AJUSTE CRÍTICO!: Filtrar solo los electrones que NO pertenecen a ningún átomo de Hidrógeno o Grupo
+  const electrons = particles.filter(p => p.type === 'e' && !p.hydrogenGroup && !p.group);
+  const positrons = particles.filter(p => p.type === 'positron');
+
+  // Si existen ambos en la escena, siempre se atraen (alcance infinito)
+  for (const e of electrons) {
+    for (const pos of positrons) {
+      const dx = pos.x - e.x;
+      const dy = pos.y - e.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > COLLAPSE_DIST) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const baseAccel = 80;  
+        const closeBoost = 5000 / (dist || 1); 
+        const force = (baseAccel + closeBoost) * DT;
+
+        if (!e.grabbed) { e.vx += nx * force; e.vy += ny * force; }
+        if (!pos.grabbed) { pos.vx -= nx * force; pos.vy -= ny * force; }
+      }
+
+      if (dist <= COLLAPSE_DIST) {
+        console.log("[Física] Aniquilación e⁻ + e⁺ ──> 2γ");
+
+        const spawnX = (e.x + pos.x) / 2;
+        const spawnY = (e.y + pos.y) / 2;
+
+        e.grabbed = false;
+        pos.grabbed = false;
+
+        particles.splice(particles.indexOf(e), 1);
+        particles.splice(particles.indexOf(pos), 1);
+
+        flashEffects.push({ x: spawnX, y: spawnY, radius: 10, maxRadius: 60, alpha: 1.0 });
+
+        const angle = Math.random() * Math.PI * 2;
+
+        const gamma1 = new Particle({ type: 'photon', x: spawnX, y: spawnY });
+        gamma1.vx = Math.cos(angle) * PHOTON_SPEED;
+        gamma1.vy = Math.sin(angle) * PHOTON_SPEED;
+
+        const gamma2 = new Particle({ type: 'photon', x: spawnX, y: spawnY });
+        gamma2.vx = Math.cos(angle + Math.PI) * PHOTON_SPEED;
+        gamma2.vy = Math.sin(angle + Math.PI) * PHOTON_SPEED;
+
+        particles.push(gamma1, gamma2);
+
+        if (audioManager) audioManager.playBondSound();
+        return; 
+      }
+    }
+  }
+}
+// ─────────────────────────────────────────────────────────
+// ARRANQUE DE LA CÁMARA Y LA SIMULACIÓN
+// ─────────────────────────────────────────────────────────
+initCamera(video, onHandResults)
+  .then(() => {
+    console.log("Laboratorio cuántico e interacciones moleculares inicializadas.");
+    requestAnimationFrame(gameLoop);
+  })
+  .catch(err => {
+    if (hudStatus) hudStatus.innerText = "Error al conectar la cámara.";
+    console.error(err);
+  });

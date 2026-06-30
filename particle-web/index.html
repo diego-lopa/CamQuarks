@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A Materia Peza a Peza</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
+      color: #fff;
+    }
+
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Vídeo de cámara — DEBE estar espejado para que sea intuitivo */
+    #webcam {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      /* Mantiene el espejo del vídeo */
+      opacity: 0.85;
+    }
+
+    #particle-canvas {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* ─── TÍTULO CENTRAL SUPERIOR ─── */
+    #app-title {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Inter', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 1.5px;
+      text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 238, 255, 0.15);
+      z-index: 10;
+      pointer-events: none;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    /* ─── LOGOS INFERIOR ─── */
+    #footer-logos {
+      position: absolute;
+      bottom: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      pointer-events: none;
+      user-select: none;
+    }
+    #footer-logos img {
+      height: 300px;
+      opacity: 0.75;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+      transition: opacity 0.3s;
+    }
+
+    /* ─── BOTÓN CIRCULAR "?" ─── */
+    #toggle-hud {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 30px;
+      height: 30px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #00eeff;
+      border: 2px solid rgba(0, 238, 255, 0.4);
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 100;
+      transition: all 0.3s ease;
+      background: rgba(10, 15, 30, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      padding: 0;
+    }
+    #toggle-hud:hover {
+      background: rgba(0, 238, 255, 0.2);
+      box-shadow: 0 0 20px rgba(0, 238, 255, 0.5);
+      transform: scale(1.08);
+    }
+    #toggle-hud.active {
+      background: rgba(0, 238, 255, 0.25);
+      box-shadow: 0 0 15px rgba(0, 238, 255, 0.4);
+    }
+
+    /* HUD Principal - Glassmorphism */
+    .glass-panel {
+      position: absolute;
+      background: rgba(10, 15, 30, 0.65);
+      backdrop-filter: blur(12px) saturate(180%);
+      -webkit-backdrop-filter: blur(12px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      z-index: 10;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    #hud-right {
+      top: 75px;
+      right: 20px;
+      width: 340px;
+      max-height: calc(100vh - 95px);
+      overflow-y: auto;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    #hud-right.hidden {
+      opacity: 0;
+      transform: translateX(370px);
+      pointer-events: none;
+    }
+
+    /* ─── SELECTOR DE IDIOMA ─── */
+    .lang-selector {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .lang-btn {
+      flex: 1;
+      padding: 6px 0;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      color: #aaa;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-align: center;
+    }
+    .lang-btn:hover {
+      background: rgba(0, 238, 255, 0.1);
+      color: #ddd;
+    }
+    .lang-btn.active {
+      color: #00eeff;
+      background: rgba(0, 238, 255, 0.15);
+      border-color: rgba(0, 238, 255, 0.4);
+      box-shadow: 0 0 8px rgba(0, 238, 255, 0.2);
+    }
+
+    /* ─── CONTENIDO DE LA GUÍA ─── */
+    .guide-content {
+      display: none;
+    }
+    .guide-content.active {
+      display: block;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #00eeff, #ff00aa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.5px;
+    }
+
+    h2 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      color: #00eeff;
+      border-bottom: 1px solid rgba(0, 238, 255, 0.2);
+      padding-bottom: 3px;
+    }
+
+    .status-item {
+      font-size: 12px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      color: #ccc;
+    }
+
+    .status-val {
+      font-family: monospace;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .glossary-item {
+      font-size: 11px;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      color: #ddd;
+    }
+
+    .glossary-item strong {
+      color: #fff;
+    }
+
+    /* Scrollbar minimalista */
+    #hud-right::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #hud-right::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    #hud-right::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="container">
+    <video id="webcam" autoplay playsinline muted></video>
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- Título central superior -->
+    <div id="app-title">A Materia Peza a Peza</div>
+
+    <!-- Logos en la parte inferior central -->
+    <div id="footer-logos">
+      <img src="assets/logos.png" alt="NeutronInsights & CamQuarks">
+    </div>
+
+    <!-- Botón circular "?" -->
+    <button id="toggle-hud">?</button>
+
+    <!-- HUD Derecho: Guía Científica Multilingüe -->
+    <div id="hud-right" class="glass-panel hidden">
+      
+      <!-- Selector de idioma -->
+      <div class="lang-selector">
+        <button class="lang-btn active" data-lang="gl">GL</button>
+        <button class="lang-btn" data-lang="es">ES</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+      </div>
+
+      <!-- ═══════ GALEGO ═══════ -->
+      <div class="guide-content active" id="guide-gl">
+        <h1>Modelo Estándar e Interaccións</h1>
+
+        <h2>Interaccións Fortes</h2>
+        <div class="glossary-item">
+          <strong>Confinamento de Cor:</strong> Separa dous quarks dun hadrón estirándoos con ambas mans. A enerxía
+          do baleiro creará un par quark-antiquark para formar un <em>Mesón Pión (π)</em> e restaurar o hadrón.
+        </div>
+        <div class="glossary-item">
+          <strong>Fusión Hadrónica:</strong> Xunta quarks libres para formar barións (<em>Protóns</em>: uud,
+          <em>Neutróns</em>: udd) ou mesóns (pións).
+        </div>
+
+        <h2>Desintegracións e Leis</h2>
+        <div class="glossary-item">
+          <strong>Decaemento Beta (β⁻):</strong> O neutrón libre é inestable. Transmutará espontaneamente nun Protón
+          emitindo un Electrón (e⁻) e un Antineutrino electrónico (ν̄ₑ).
+        </div>
+        <div class="glossary-item">
+          <strong>Decaemento do Pión (π):</strong> Os pións decaen rapidamente en Muóns (μ⁻/μ⁺) e Neutrinos Muónicos
+          (νμ/ν̄μ).
+        </div>
+        <div class="glossary-item">
+          <strong>Decaemento do Muón (μ):</strong> Os muóns son leptóns inestables. Decaen tras uns segundos.
+        </div>
+        <div class="glossary-item">
+          <strong>Aniquilación Materia-Antimateria:</strong> Xunta un Electrón (e⁻) e un Positrón (e⁺, antimateria
+          indicada con bordos discontinuos). Aniquilaranse liberando dous Fotóns (γ) en direccións opostas.
+        </div>
+      </div>
+
+      <!-- ═══════ CASTELLANO ═══════ -->
+      <div class="guide-content" id="guide-es">
+        <h1>Modelo Estándar e Interacciones</h1>
+
+        <h2>Interacciones Fuertes</h2>
+        <div class="glossary-item">
+          <strong>Confinamiento de Color:</strong> Separa dos quarks de un hadrón estirándolos con ambas manos. La energía
+          del vacío creará un par quark-antiquark para formar un <em>Mesón Pion (π)</em> y restaurar el hadrón.
+        </div>
+        <div class="glossary-item">
+          <strong>Fusión Hadrónica:</strong> Junta quarks libres para formar bariones (<em>Protones</em>: uud,
+          <em>Neutrones</em>: udd) o mesones (piones).
+        </div>
+
+        <h2>Desintegraciones y Leyes</h2>
+        <div class="glossary-item">
+          <strong>Decaimiento Beta (β⁻):</strong> El neutrón libre es inestable. Transmutará espontáneamente en un Protón
+          emitiendo un Electrón (e⁻) y un Antineutrino electrónico (ν̄ₑ).
+        </div>
+        <div class="glossary-item">
+          <strong>Decaimiento del Pión (π):</strong> Los piones decaen rápidamente en Muones (μ⁻/μ⁺) y Neutrinos Muónicos
+          (νμ/ν̄μ).
+        </div>
+        <div class="glossary-item">
+          <strong>Decaimiento del Muón (μ):</strong> Los muones son leptones inestables. Decaen tras unos segundos.
+        </div>
+        <div class="glossary-item">
+          <strong>Aniquilación Materia-Antimateria:</strong> Junta un Electrón (e⁻) y un Positrón (e⁺, antimateria
+          indicada con bordes discontinuos). Se aniquilarán liberando dos Fotones (γ) en direcciones opuestas.
+        </div>
+      </div>
+
+      <!-- ═══════ ENGLISH ═══════ -->
+      <div class="guide-content" id="guide-en">
+        <h1>Standard Model & Interactions</h1>
+
+        <h2>Strong Interactions</h2>
+        <div class="glossary-item">
+          <strong>Color Confinement:</strong> Pull two quarks apart from a hadron using both hands. The vacuum energy
+          will create a quark-antiquark pair to form a <em>Pion Meson (π)</em> and restore the hadron.
+        </div>
+        <div class="glossary-item">
+          <strong>Hadronic Fusion:</strong> Bring free quarks together to form baryons (<em>Protons</em>: uud,
+          <em>Neutrons</em>: udd) or mesons (pions).
+        </div>
+
+        <h2>Decays & Laws</h2>
+        <div class="glossary-item">
+          <strong>Beta Decay (β⁻):</strong> The free neutron is unstable. It will spontaneously transmute into a Proton
+          emitting an Electron (e⁻) and an Electron Antineutrino (ν̄ₑ).
+        </div>
+        <div class="glossary-item">
+          <strong>Pion Decay (π):</strong> Pions decay rapidly into Muons (μ⁻/μ⁺) and Muon Neutrinos (νμ/ν̄μ).
+        </div>
+        <div class="glossary-item">
+          <strong>Muon Decay (μ):</strong> Muons are unstable leptons. They decay after a few seconds.
+        </div>
+        <div class="glossary-item">
+          <strong>Matter-Antimatter Annihilation:</strong> Bring an Electron (e⁻) and a Positron (e⁺, antimatter shown
+          with dashed borders) together. They will annihilate releasing two Photons (γ) in opposite directions.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MediaPipe vía CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script type="module" src="src/main.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // ─── Toggle Guía con botón "?" ───
+      const toggleBtn = document.getElementById('toggle-hud');
+      const hudRight = document.getElementById('hud-right');
+      toggleBtn.addEventListener('click', () => {
+        const isHidden = hudRight.classList.toggle('hidden');
+        toggleBtn.classList.toggle('active', !isHidden);
+      });
+
+      // ─── Selector de idioma ───
+      const langBtns = document.querySelectorAll('.lang-btn');
+      const guideContents = document.querySelectorAll('.guide-content');
+      langBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const lang = btn.dataset.lang;
+          langBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          guideContents.forEach(g => g.classList.remove('active'));
+          document.getElementById(`guide-${lang}`).classList.add('active');
+        });
+      });
+    });
+  </script>
+
+  <style>
+    /* Responsive logo */
+    #footer-logos img {
+      height: 100px;
+      max-height: 300px;
+      width: auto;
+      max-width: 90vw;
+      opacity: 0.75;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+      transition: opacity 0.3s, height 0.3s;
+    }
+    @media (max-width: 600px) {
+      #footer-logos img {
+        height: 90px;
+        max-height: 90px;
+      }
+    }
+  </style>
+</body>
+
+</html>
