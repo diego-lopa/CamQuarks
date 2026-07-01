@@ -42,7 +42,13 @@ export class BetaDecay {
           const dQuark = g.members.find(p => p.type === 'd');
           if (!dQuark) continue;
 
-          dQuark.type = 'u'; // Transmutación instantánea de sabor
+          // Transmutación instantánea de sabor y actualización de etiqueta visual
+          dQuark.type = 'u'; 
+          if (typeof dQuark.updateLabelAndColor === 'function') {
+            dQuark.updateLabelAndColor();
+          }
+          
+          // Forzar al grupo a recontar constituyentes y cambiar su nombre a "Protón"
           g.updateConstituents();
 
           // Crear Electrón (e⁻) constante
@@ -56,12 +62,21 @@ export class BetaDecay {
           nu.vx = -Math.cos(angle) * this.separationSpeed;
           nu.vy = -Math.sin(angle) * this.separationSpeed;
           particles.push(nu);
+          
+          console.log(`[Beta Decay] Transmutación completada con éxito: Neutrón ──> Protón`);
+
         } else if (g.name === "Protón") {
           // Protón (uud) -> Neutrón (udd) + e⁺ + νe
           const uQuark = g.members.find(p => p.type === 'u');
           if (!uQuark) continue;
 
-          uQuark.type = 'd'; // Transmutación de sabor
+          // Transmutación instantánea de sabor y actualización de etiqueta visual
+          uQuark.type = 'd'; 
+          if (typeof uQuark.updateLabelAndColor === 'function') {
+            uQuark.updateLabelAndColor();
+          }
+          
+          // Forzar al grupo a recontar constituyentes y cambiar su nombre a "Neutrón"
           g.updateConstituents();
 
           // Crear Positrón (e⁺)
@@ -75,6 +90,8 @@ export class BetaDecay {
           nu.vx = -Math.cos(angle) * this.separationSpeed;
           nu.vy = -Math.sin(angle) * this.separationSpeed;
           particles.push(nu);
+          
+          console.log(`[Beta Decay] Transmutación completada con éxito: Protón ──> Neutrón`);
         }
 
         if (audioManager) audioManager.playBondSound();
