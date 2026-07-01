@@ -303,7 +303,7 @@ function handleDynamicNuclearFusion() {
 
 function handleElectronPositronAnnihilation() {
   // Ajustamos el colapso al radio físico donde impactan (colisión real)
-  const COLLAPSE_DIST = 28;      
+  const COLLAPSE_DIST = 2800;      
   // Velocidad constante solicitada para los fotones resultantes
   const PHOTON_SPEED = 550;      
 
@@ -325,7 +325,7 @@ function handleElectronPositronAnnihilation() {
         // Fuerza con la inversa de la distancia partiendo de una base de 400
         // Usamos un multiplicador adecuado (ej: 3500) para que la fuerza 
         // empiece sintiéndose suave a lo lejos y se incremente bruscamente al acercarse.
-        const baseForce = 400;
+        const baseForce = 700;
         const inverseBoost = 3500 / (dist || 1); 
         const force = (baseForce + inverseBoost) * DT;
 

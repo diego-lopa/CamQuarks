@@ -114,83 +114,91 @@ export function render(ctx, canvas, particles, groups, gestures) {
     ctx.setLineDash([]);
   }
 
-// 4. Dibujar Partículas Individuales (Quarks, Leptones, Fotones)
+// 4. Dibujar Partículas Individuales (Quarks, Leptones, Fotones) - Efecto Plasma 3D + Transparencia + Rejilla
   for (const p of particles) {
     ctx.save();
     
     // COMPROBACIÓN ESPECÍFICA DE NEUTRINO
     const esNeutrino = ['nu_e', 'anti_nu_e', 'nu_mu', 'anti_nu_mu'].includes(p.type);
     
+    // TRANSPARENCIA GLOBAL DE LAS PARTÍCULAS
     if (esNeutrino) {
-      // Reducimos la opacidad general solo para el neutrino (65% transparente)
-      ctx.globalAlpha = 0.35; 
+      ctx.globalAlpha = 0.45; // Los neutrinos son extremadamente sutiles y transparentes
+    } else {
+      ctx.globalAlpha = 0.75; // 75% de opacidad para que todas tengan un toque translúcido muy estético
     }
     
+    // Configuración dinámica del brillo exterior (Glow) según estado
     if (p.grabbed) {
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 20;
       ctx.shadowColor = '#FFFFFF';
     } else if (p.type === 'photon') {
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 15;
       ctx.shadowColor = '#FFFFFF';
-    } else if (esNeutrino) { 
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = p.color;
     } else {
-      ctx.shadowBlur = 5;
+      ctx.shadowBlur = 8;
       ctx.shadowColor = p.color;
     }
 
-    // ─── LÓGICA DE ANTIMATERIA (CUADRÍCULA INTERIOR) ───
     const esAntimateria = p.type.startsWith('anti_') || p.type === 'positron' || p.type === 'antimuon';
 
+    // ─── RENDERS DEL ORBE DE PLASMA 3D ───
+    // Desplazamos el punto focal de luz hacia arriba a la izquierda para el volumen 3D
+    const offsetX = p.x - p.radius * 0.25;
+    const offsetY = p.y - p.radius * 0.25;
+    
+    let plasmaGradient = ctx.createRadialGradient(
+      offsetX, offsetY, p.radius * 0.05, 
+      p.x, p.y, p.radius
+    );
+
+    // Ajustamos los topes de color para mantener la translucidez interna
+    plasmaGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)'); // Núcleo brillante casi opaco
+    plasmaGradient.addColorStop(0.2, p.color);                  // Color de la partícula
+    plasmaGradient.addColorStop(0.8, p.color);                  // Cuerpo del plasma
+    plasmaGradient.addColorStop(1, 'rgba(0, 0, 0, 0.25)');       // Sombra suave en el contorno
+
+    // Dibujamos el volumen base con el gradiente esférico
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    
-    if (esAntimateria) {
-      // 1. Dibujamos primero el fondo con el color sólido de la partícula
-      ctx.fillStyle = p.color;
-      ctx.fill();
+    ctx.fillStyle = plasmaGradient;
+    ctx.fill();
 
-      // 2. Creamos un mini-canvas en memoria para fabricar el patrón de la rejilla
+    // ─── MALLA EN CUADRÍCULA SOBREPUESTA PARA ANTIMATERIA ───
+    if (esAntimateria) {
+      // Creamos la micro-rejilla en un lienzo virtual rápido de 6x6
       const patternCanvas = document.createElement('canvas');
       const pCtx = patternCanvas.getContext('2d');
-      patternCanvas.width = 6;  // Tamaño del cuadro de la cuadrícula
+      patternCanvas.width = 6;
       patternCanvas.height = 6;
 
-      // 3. Dibujamos las líneas de la cuadrícula con un 40% de opacidad
-      pCtx.strokeStyle = `rgba(255, 255, 255, 0.40)`; 
+      // Líneas blancas con el 40% de opacidad solicitado
+      pCtx.strokeStyle = 'rgba(255, 255, 255, 0.40)';
       pCtx.lineWidth = 1;
-      
       pCtx.beginPath();
-      // Línea horizontal del patrón
       pCtx.moveTo(0, 0); pCtx.lineTo(6, 0);
-      // Línea vertical del patrón
       pCtx.moveTo(0, 0); pCtx.lineTo(0, 6);
       pCtx.stroke();
 
-      // 4. Convertimos el patrón en un estilo de relleno y lo aplicamos sobre el círculo
+      // Aplicamos el patrón encima del círculo de plasma (se confina dentro gracias a la ruta actual)
       const gridPattern = ctx.createPattern(patternCanvas, 'repeat');
       ctx.fillStyle = gridPattern;
       ctx.fill();
 
-      // Establecemos el borde discontinuo que ya tenías
-      ctx.setLineDash([3, 3]);
-    } else {
-      // Si es materia normal, el comportamiento no cambia
-      ctx.fillStyle = p.color;
-      ctx.fill();
-      ctx.setLineDash([]);
+      // Establecemos el borde discontinuo orbital
+      ctx.setLineDash([4, 4]);
     }
 
-    // Dibujamos el trazo/borde exterior de la partícula
-    ctx.strokeStyle = p.grabbed ? '#FFFFFF' : 'rgba(255,255,255,0.6)';
+    // Dibujamos el trazo/borde exterior translúcido
+    ctx.strokeStyle = p.grabbed ? '#FFFFFF' : 'rgba(255, 255, 255, 0.5)';
     ctx.lineWidth = p.grabbed ? 3 : 1.5;
     ctx.stroke();
 
+    // Renderizado del núcleo de neutrinos
     if (esNeutrino) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius * 0.9, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.arc(p.x, p.y, p.radius * 0.7, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       ctx.fill();
 
       if (neutrinoImg.complete) {
@@ -199,112 +207,20 @@ export function render(ctx, canvas, particles, groups, gestures) {
       }
     }
 
-    ctx.restore(); // Restaura el estado (incluyendo el Alpha y el LineDash)
+    ctx.restore(); // Restaura el Alpha global y los dashes antes de pintar las etiquetas de texto
 
+    // Dibujar etiquetas de texto (con un sutil fondo o contraste para leerse bien sobre el plasma)
     if (!esNeutrino) {
       const usaTextoNegro = ['muon', 'antimuon', 'e', 'positron'].includes(p.type);
-      ctx.fillStyle = usaTextoNegro ? '#000000' : '#FFFFFF';
-      ctx.font = 'italic bold 15px serif'; 
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(p.label, p.x, p.y);
-    }
-  }// 4. Dibujar Partículas Individuales (Quarks, Leptones, Fotones)
-  for (const p of particles) {
-    ctx.save();
-    
-    // COMPROBACIÓN ESPECÍFICA DE NEUTRINO
-    const esNeutrino = ['nu_e', 'anti_nu_e', 'nu_mu', 'anti_nu_mu'].includes(p.type);
-    
-    if (esNeutrino) {
-      // Reducimos la opacidad general solo para el neutrino (65% transparente)
-      ctx.globalAlpha = 0.35; 
-    }
-    
-    if (p.grabbed) {
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = '#FFFFFF';
-    } else if (p.type === 'photon') {
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = '#FFFFFF';
-    } else if (esNeutrino) { 
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = p.color;
-    } else {
-      ctx.shadowBlur = 5;
-      ctx.shadowColor = p.color;
-    }
-
-    // ─── LÓGICA DE ANTIMATERIA (CUADRÍCULA INTERIOR) ───
-    const esAntimateria = p.type.startsWith('anti_') || p.type === 'positron' || p.type === 'antimuon';
-
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    
-    if (esAntimateria) {
-      // 1. Dibujamos primero el fondo con el color sólido de la partícula
-      ctx.fillStyle = p.color;
-      ctx.fill();
-
-      // 2. Creamos un mini-canvas en memoria para fabricar el patrón de la rejilla
-      const patternCanvas = document.createElement('canvas');
-      const pCtx = patternCanvas.getContext('2d');
-      patternCanvas.width = 6;  // Tamaño del cuadro de la cuadrícula
-      patternCanvas.height = 6;
-
-      // 3. Dibujamos las líneas de la cuadrícula con un 40% de opacidad
-      pCtx.strokeStyle = `rgba(255, 255, 255, 0.40)`; 
-      pCtx.lineWidth = 1;
-      
-      pCtx.beginPath();
-      // Línea horizontal del patrón
-      pCtx.moveTo(0, 0); pCtx.lineTo(6, 0);
-      // Línea vertical del patrón
-      pCtx.moveTo(0, 0); pCtx.lineTo(0, 6);
-      pCtx.stroke();
-
-      // 4. Convertimos el patrón en un estilo de relleno y lo aplicamos sobre el círculo
-      const gridPattern = ctx.createPattern(patternCanvas, 'repeat');
-      ctx.fillStyle = gridPattern;
-      ctx.fill();
-
-      // Establecemos el borde discontinuo que ya tenías
-      ctx.setLineDash([3, 3]);
-    } else {
-      // Si es materia normal, el comportamiento no cambia
-      ctx.fillStyle = p.color;
-      ctx.fill();
-      ctx.setLineDash([]);
-    }
-
-    // Dibujamos el trazo/borde exterior de la partícula
-    ctx.strokeStyle = p.grabbed ? '#FFFFFF' : 'rgba(255,255,255,0.6)';
-    ctx.lineWidth = p.grabbed ? 3 : 1.5;
-    ctx.stroke();
-
-    if (esNeutrino) {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius * 0.9, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.fill();
-
-      if (neutrinoImg.complete) {
-        const size = p.radius * 2 * 0.85;
-        ctx.drawImage(neutrinoImg, p.x - size / 2, p.y - size / 2, size, size);
-      }
-    }
-
-    ctx.restore(); // Restaura el estado (incluyendo el Alpha y el LineDash)
-
-    if (!esNeutrino) {
-      const usaTextoNegro = ['muon', 'antimuon', 'e', 'positron'].includes(p.type);
-      ctx.fillStyle = usaTextoNegro ? '#000000' : '#FFFFFF';
+      ctx.fillStyle = usaTextoNegro ? 'rgba(0, 0, 0, 0.85)' : '#FFFFFF';
       ctx.font = 'italic bold 15px serif'; 
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(p.label, p.x, p.y);
     }
   }
+  
+  
 
   // 5. Feedback Visual del Pinch Manual
   for (const g of gestures) {
